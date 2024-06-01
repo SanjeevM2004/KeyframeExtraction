@@ -1,10 +1,8 @@
 import numpy as np
 import json
 import cv2
-from keras.utils.data_utils import get_file
-from keras import backend as K
-import glob as gb
-import os
+from tensorflow.keras.utils import get_file
+from tensorflow.keras import backend as K
 from sklearn.cluster import KMeans
 
 CLASS_INDEX = None
@@ -41,28 +39,29 @@ def decode_predictions(preds, top=5):
         results.append(result)
     return results
 
-def extract_keyframes(video_path, sampling_rate=30):
+def extract_keyframes(video_path, num_clusters=5, sampling_rate=30):
     capture = cv2.VideoCapture(video_path)
     frames = []
     k = 0
-    while(capture.isOpened()):
+    while capture.isOpened():
         if k % sampling_rate == 0:
             capture.set(1, k)
             ret, frame = capture.read()
             if frame is None:
                 break
-            frames.append(np.asarray(frame))
+            # Convert frame from BGR to RGB
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            frames.append(np.asarray(frame_rgb))
         k += 1
     capture.release()
-    return np.array(frames)
 
-def main(video_path):
-    frames = extract_keyframes(video_path)
-    print("Extracted frames from the video")
-    
-    # Assuming we have a feature extraction function `extract_features`
+    frames = np.array(frames)
     features = extract_features(frames)
-    kmeans = KMeans(n_clusters=5, random_state=0).fit(features)
+    
+    # Ensure num_clusters does not exceed the number of frames
+    num_clusters = min(num_clusters, len(frames))
+    
+    kmeans = KMeans(n_clusters=num_clusters, random_state=0).fit(features)
     
     frame_indices = []
     for center in kmeans.cluster_centers_:
@@ -81,5 +80,5 @@ def extract_features(frames):
 
 if __name__ == '__main__':
     video_path = 'path_to_your_video.mp4'
-    keyframes = main(video_path)
+    keyframes = extract_keyframes(video_path, num_clusters=5)
     print("Selected keyframes indices:", keyframes)
